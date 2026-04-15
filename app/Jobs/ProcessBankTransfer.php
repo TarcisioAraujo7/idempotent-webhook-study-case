@@ -2,22 +2,22 @@
 
 namespace App\Jobs;
 
-use App\Models\Order;
+use App\Models\BankTransfer;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 
-class ProcessOrder implements ShouldQueue
+class ProcessBankTransfer implements ShouldQueue
 {
     use Dispatchable, Queueable;
 
     public function __construct(
-        private readonly array $orderData,
+        private readonly array $bankTransferData,
     ) {
     }
 
     public function handle(): void
     {
-        Order::create($this->orderData);
+        BankTransfer::create($this->bankTransferData);
     }
 }
