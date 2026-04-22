@@ -2,15 +2,22 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\PaymentIdempotencyKeyGenerator;
+use App\Services\PaymentPayloadNormalizer;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Redis;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 class CheckDuplicatedTransfer
 {
+    public function __construct(
+        private readonly PaymentPayloadNormalizer $payloadNormalizer,
+        private readonly PaymentIdempotencyKeyGenerator $idempotencyKeyGenerator,
+    ) {
+    }
+
     /**
      * Handle an incoming request.
      *
@@ -18,7 +25,10 @@ class CheckDuplicatedTransfer
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $idempotencyKey = static::generateIdempotencyKey($request->toArray());
+        $normalizedPayload = $this->payloadNormalizer->normalize($request->toArray());
+        $request->merge($normalizedPayload);
+
+        $idempotencyKey = $this->idempotencyKeyGenerator->generate($normalizedPayload);
 
         if (! Redis::set($idempotencyKey, 1, 'EX', 30, 'NX')) {
             return response()->json(['message' => 'Request already processed'], 409);
@@ -37,19 +47,5 @@ class CheckDuplicatedTransfer
         }
 
         return $response;
-    }
-
-    /**
-     * @param array<mixed> $payload
-     * @return string
-     */
-    public static function generateIdempotencyKey(array $payload): string
-    {
-        $flattenedPayload = Arr::dot($payload);
-        ksort($flattenedPayload);
-
-        $encodedPayload = json_encode($flattenedPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
-        return 'webhook:idempotency:' . hash('sha256', $encodedPayload ?: '[]');
     }
 }
