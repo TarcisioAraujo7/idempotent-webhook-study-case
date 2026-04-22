@@ -13,12 +13,21 @@ class WebhookController extends Controller
     ) {
     }
 
-    public function store(Request $request): JsonResponse
+    public function storePhase1(Request $request): JsonResponse
     {
         $this->bankTransferService->process($request);
 
         return response()->json([
-            'message' => 'Bank transfer queued successfully.',
-        ], 202);
+            'message' => 'Phase 1 webhook processed successfully.',
+        ], 201);
+    }
+
+    public function storePhase2(Request $request): JsonResponse
+    {
+        $this->bankTransferService->process($request);
+
+        return response()->json([
+            'message' => 'Phase 2 webhook processed successfully.',
+        ], 201);
     }
 }
