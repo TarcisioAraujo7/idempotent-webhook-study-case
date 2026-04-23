@@ -30,6 +30,12 @@ class CheckDuplicatedTransferInDatabase
 
         $idempotencyKey = $this->resolveIdempotencyKey($request);
 
+        if ($idempotencyKey === null) {
+            return response()->json([
+                'message' => 'The Idempotency-Key header is required.',
+            ], 400);
+        }
+
         try {
             $receipt = PaymentWebhookReceipt::query()->create([
                 'idempotency_key' => $idempotencyKey,
