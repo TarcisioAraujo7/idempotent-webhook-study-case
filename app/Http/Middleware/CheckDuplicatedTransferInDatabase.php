@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Enums\PaymentWebhookReceiptStatus;
 use App\Models\PaymentWebhookReceipt;
 use App\Services\PaymentPayloadNormalizer;
+use App\Services\PaymentWebhookIdempotencyKeyResolver;
 use Closure;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
@@ -15,6 +16,7 @@ class CheckDuplicatedTransferInDatabase
 {
     public function __construct(
         private readonly PaymentPayloadNormalizer $payloadNormalizer,
+        private readonly PaymentWebhookIdempotencyKeyResolver $idempotencyKeyResolver,
     ) {
     }
 
@@ -28,7 +30,7 @@ class CheckDuplicatedTransferInDatabase
         $normalizedPayload = $this->payloadNormalizer->normalize($request->toArray());
         $request->merge($normalizedPayload);
 
-        $idempotencyKey = $this->resolveIdempotencyKey($request);
+        $idempotencyKey = $this->idempotencyKeyResolver->resolve($request);
 
         if ($idempotencyKey === null) {
             return response()->json([
@@ -78,16 +80,5 @@ class CheckDuplicatedTransferInDatabase
         $receipt->markAsProcessed();
 
         return $response;
-    }
-
-    private function resolveIdempotencyKey(Request $request): string
-    {
-        $providerIdempotencyKey = trim((string) $request->header('Idempotency-Key', ''));
-
-        if ($providerIdempotencyKey === '') {
-            $providerIdempotencyKey = trim((string) $request->header('X-Idempotency-Key', ''));
-        }
-
-        return 'webhook:provider-idempotency:' . hash('sha256', $providerIdempotencyKey);
     }
 }
