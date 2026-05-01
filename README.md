@@ -39,7 +39,7 @@ Sem uma estratégia de idempotência, a mesma intenção de pagamento pode dispa
 | --- | --- | --- |
 | 1 | `POST /api/webhooks/payments/phase-1` | Sem idempotência |
 | 2 | `POST /api/webhooks/payments/phase-2` | Redis com TTL |
-| 3 | `POST /api/webhooks/payments/phase-3` | MySQL com índice único |
+| 3 | `POST /api/webhooks/payments/phase-3` | Header de idempotência + MySQL |
 | 4 | `POST /api/webhooks/payments/phase-4` | Redis lock + MySQL |
 
 ## Estratégias
@@ -54,11 +54,11 @@ Gera uma chave a partir do payload normalizado e usa Redis com `SET NX EX` para 
 
 É uma boa proteção contra retries próximos, mas não é uma garantia durável.
 
-### Fase 3: MySQL
+### Fase 3: Header de idempotência + MySQL
 
-Usa a tabela `payment_webhook_receipts` com índice único em `idempotency_key`.
+A identidade da operação passa a vir do header `Idempotency-Key` ou `X-Idempotency-Key`.
 
-A aplicação espera o header `Idempotency-Key` ou `X-Idempotency-Key`. Se a mesma chave já existir, a requisição é tratada como duplicada.
+A aplicação registra essa chave na tabela `payment_webhook_receipts`, com índice único em `idempotency_key` e status do evento recebido. Se a mesma chave já existir, a requisição é tratada como duplicada.
 
 ### Fase 4: Híbrida
 
@@ -96,7 +96,6 @@ Instale as dependências:
 
 ```bash
 composer install
-npm install
 ```
 
 Prepare o ambiente:
