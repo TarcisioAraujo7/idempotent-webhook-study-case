@@ -25,11 +25,12 @@ Sem uma estratégia de idempotência, a mesma intenção de pagamento pode dispa
 
 ## Stack
 
-- PHP 8.3+
+- PHP 8.4+
 - Laravel 13
-- Redis com `predis/predis`
-- Banco relacional
+- MySQL 8.4
+- Redis 7 com `predis/predis`
 - Queue do Laravel
+- Docker Compose
 - Pest/PHPUnit
 
 ## Fases Do Estudo
@@ -38,8 +39,8 @@ Sem uma estratégia de idempotência, a mesma intenção de pagamento pode dispa
 | --- | --- | --- |
 | 1 | `POST /api/webhooks/payments/phase-1` | Sem idempotência |
 | 2 | `POST /api/webhooks/payments/phase-2` | Redis com TTL |
-| 3 | `POST /api/webhooks/payments/phase-3` | Banco com índice único |
-| 4 | `POST /api/webhooks/payments/phase-4` | Redis lock + banco |
+| 3 | `POST /api/webhooks/payments/phase-3` | MySQL com índice único |
+| 4 | `POST /api/webhooks/payments/phase-4` | Redis lock + MySQL |
 
 ## Estratégias
 
@@ -53,7 +54,7 @@ Gera uma chave a partir do payload normalizado e usa Redis com `SET NX EX` para 
 
 É uma boa proteção contra retries próximos, mas não é uma garantia durável.
 
-### Fase 3: Banco
+### Fase 3: MySQL
 
 Usa a tabela `payment_webhook_receipts` com índice único em `idempotency_key`.
 
@@ -61,13 +62,35 @@ A aplicação espera o header `Idempotency-Key` ou `X-Idempotency-Key`. Se a mes
 
 ### Fase 4: Híbrida
 
-Combina Redis e banco:
+Combina Redis e MySQL:
 
 - Redis atua como lock rápido contra concorrência imediata;
-- banco mantém o histórico e a garantia persistente de unicidade.
+- MySQL mantém o histórico e a garantia persistente de unicidade.
 
 
 ## Como Rodar
+
+Com Docker:
+
+```bash
+docker compose up --build
+```
+
+A aplicação ficará disponível em `http://127.0.0.1:8000`. O Compose sobe MySQL e Redis, executa as migrations e inicia o worker da fila junto com o servidor Laravel.
+
+Para rodar os testes dentro do container:
+
+```bash
+docker compose exec app php artisan test
+```
+
+Para remover os containers e volumes:
+
+```bash
+docker compose down -v
+```
+
+Sem Docker:
 
 Instale as dependências:
 
