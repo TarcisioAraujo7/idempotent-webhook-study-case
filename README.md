@@ -6,7 +6,7 @@ O objetivo é demonstrar, de forma prática, como diferentes estratégias lidam 
 
 
 
-## Objetivo
+## Escopo
 
 Este projeto simula um endpoint de webhook de pagamento que despacha o processamento assíncrono de uma transferência bancária.
 
