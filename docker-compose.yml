@@ -1,0 +1,98 @@
+x-app: &app
+  build:
+    context: .
+  image: idempotent-webhook-study-case:local
+  environment: &app-environment
+    APP_NAME: "Idempotent Webhook Study Case"
+    APP_ENV: local
+    APP_KEY: base64:hb1QE+r9MLoYBSlnU50qdEYDgYpbSY3tAq/X2JaWv9I=
+    APP_DEBUG: "true"
+    APP_URL: http://localhost:8000
+    LOG_CHANNEL: stderr
+    LOG_LEVEL: debug
+    DB_CONNECTION: mysql
+    DB_HOST: mysql
+    DB_PORT: 3306
+    DB_DATABASE: idempotent_webhook
+    DB_USERNAME: laravel
+    DB_PASSWORD: laravel
+    REDIS_CLIENT: predis
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    CACHE_STORE: database
+    QUEUE_CONNECTION: database
+    SESSION_DRIVER: database
+    BROADCAST_CONNECTION: log
+    FILESYSTEM_DISK: local
+    MAIL_MAILER: log
+    PAYMENT_WEBHOOK_LOCK_SECONDS: 30
+  volumes:
+    - app-storage:/var/www/html/storage
+
+services:
+  app:
+    <<: *app
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  queue:
+    <<: *app
+    command: ["php", "artisan", "queue:work", "--tries=1", "--timeout=0"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    command: ["php", "artisan", "migrate", "--force"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: "no"
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: idempotent_webhook
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: laravel
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  app-storage:
+  mysql-data:
+  redis-data:
