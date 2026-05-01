@@ -14,6 +14,10 @@ final class PaymentWebhookIdempotencyKeyResolver
             $providerIdempotencyKey = trim((string) $request->header('X-Idempotency-Key', ''));
         }
 
+        if ($providerIdempotencyKey === '') {
+            return null;
+        }
+
         return 'webhook:provider-idempotency:' . hash('sha256', $providerIdempotencyKey);
     }
 }

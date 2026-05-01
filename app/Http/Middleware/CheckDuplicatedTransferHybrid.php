@@ -4,8 +4,8 @@ namespace App\Http\Middleware;
 
 use App\Enums\PaymentWebhookReceiptStatus;
 use App\Models\PaymentWebhookReceipt;
-use App\Services\PaymentIdempotencyKeyGenerator;
 use App\Services\PaymentPayloadNormalizer;
+use App\Services\PaymentWebhookIdempotencyKeyResolver;
 use Closure;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
@@ -19,7 +19,7 @@ class CheckDuplicatedTransferHybrid
 {
     public function __construct(
         private readonly PaymentPayloadNormalizer $payloadNormalizer,
-        private readonly PaymentIdempotencyKeyGenerator $idempotencyKeyGenerator,
+        private readonly PaymentWebhookIdempotencyKeyResolver $idempotencyKeyResolver,
     ) {
     }
 
@@ -33,7 +33,14 @@ class CheckDuplicatedTransferHybrid
         $normalizedPayload = $this->payloadNormalizer->normalize($request->toArray());
         $request->merge($normalizedPayload);
 
-        $idempotencyKey = $this->idempotencyKeyGenerator->generate($normalizedPayload);
+        $idempotencyKey = $this->idempotencyKeyResolver->resolve($request);
+
+        if ($idempotencyKey === null) {
+            return response()->json([
+                'message' => 'The Idempotency-Key header is required.',
+            ], 400);
+        }
+
         $lockKey = $idempotencyKey . ':lock';
         $lockOwner = (string) Str::uuid();
 
