@@ -1,58 +1,132 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Estudo de Arquitetura: Idempotência em Webhooks de Pagamento
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Estudo de arquitetura backend em Laravel sobre idempotência aplicada a webhooks de pagamento.
 
-## About Laravel
+O objetivo é demonstrar, de forma prática, como diferentes estratégias lidam com o mesmo problema: uma requisição de webhook pode chegar mais de uma vez e não deve gerar efeitos duplicados.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Objetivo
 
-## Learning Laravel
+Este projeto simula um endpoint de webhook de pagamento que despacha o processamento assíncrono de uma transferência bancária.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+O estudo compara quatro abordagens:
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- sem proteção contra duplicidade;
+- deduplicação temporária com Redis;
+- idempotência durável com banco de dados;
+- estratégia híbrida usando Redis e banco.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Problema Estudado
 
-## Agentic Development
+Webhooks podem ser reenviados por timeout, falha de rede, retry automático ou concorrência entre entregas próximas.
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Sem uma estratégia de idempotência, a mesma intenção de pagamento pode disparar múltiplos jobs, criar registros duplicados ou repetir operações custosas.
+
+## Stack
+
+- PHP 8.3+
+- Laravel 13
+- Redis com `predis/predis`
+- Banco relacional
+- Queue do Laravel
+- Pest/PHPUnit
+
+## Fases Do Estudo
+
+| Fase | Endpoint | Estratégia |
+| --- | --- | --- |
+| 1 | `POST /api/webhooks/payments/phase-1` | Sem idempotência |
+| 2 | `POST /api/webhooks/payments/phase-2` | Redis com TTL |
+| 3 | `POST /api/webhooks/payments/phase-3` | Banco com índice único |
+| 4 | `POST /api/webhooks/payments/phase-4` | Redis lock + banco |
+
+## Estratégias
+
+### Fase 1: Sem Idempotência
+
+Recebe o webhook, valida o payload e despacha o job. Se a mesma requisição chegar várias vezes, vários processamentos podem ser criados.
+
+### Fase 2: Redis
+
+Gera uma chave a partir do payload normalizado e usa Redis com `SET NX EX` para bloquear duplicatas dentro de uma janela curta.
+
+É uma boa proteção contra retries próximos, mas não é uma garantia durável.
+
+### Fase 3: Banco
+
+Usa a tabela `payment_webhook_receipts` com índice único em `idempotency_key`.
+
+A aplicação espera o header `Idempotency-Key` ou `X-Idempotency-Key`. Se a mesma chave já existir, a requisição é tratada como duplicada.
+
+### Fase 4: Híbrida
+
+Combina Redis e banco:
+
+- Redis atua como lock rápido contra concorrência imediata;
+- banco mantém o histórico e a garantia persistente de unicidade.
+
+
+## Como Rodar
+
+Instale as dependências:
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+npm install
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Prepare o ambiente:
 
-## Contributing
+```bash
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Suba a aplicação:
 
-## Code of Conduct
+```bash
+php artisan serve
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Rode a fila:
 
-## Security Vulnerabilities
+```bash
+php artisan queue:work
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Exemplo De Requisição
 
-## License
+```bash
+curl -X POST http://127.0.0.1:8000/api/webhooks/payments/phase-4 \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: payment-demo-0001" \
+  -d '{
+    "payer_name": "João Silva",
+    "payer_document": "123.456.789-00",
+    "amount_in_cents": 15000,
+    "bank_code": "001",
+    "branch_number": "1234",
+    "account_number": "56789-0"
+  }'
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Ao repetir a mesma requisição com o mesmo `Idempotency-Key`, a aplicação deve responder como duplicada.
+
+
+
+## Limitações
+
+- O projeto foca na entrada idempotente do webhook.
+- O job assíncrono ainda deveria ser idempotente em um sistema de produção.
+- O projeto não implementa autenticação, assinatura de webhook ou observabilidade completa.
+- A fase Redis-only não garante idempotência após expiração do TTL.
+
+## Agradecimentos
+
+Obrigado por acompanhar este estudo de arquitetura.
+
+Caso queira trocar uma ideia sobre backend, arquitetura ou desenvolvimento de software, deixo abaixo meu LinkedIn:
+
+LinkedIn: https://www.linkedin.com/in/tarcisioaraujo7/.
