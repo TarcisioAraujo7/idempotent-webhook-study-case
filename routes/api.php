@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\WebhookController;
 use App\Http\Middleware\CheckDuplicatedTransfer;
+use App\Http\Middleware\CheckDuplicatedTransferHybrid;
 use App\Http\Middleware\CheckDuplicatedTransferInDatabase;
 use Illuminate\Support\Facades\Route;
 
@@ -12,3 +13,6 @@ Route::post('/webhooks/payments/phase-2', [WebhookController::class, 'storePhase
 
 Route::post('/webhooks/payments/phase-3', [WebhookController::class, 'storePhase3'])
     ->middleware(CheckDuplicatedTransferInDatabase::class);
+
+Route::post('/webhooks/payments/phase-4', [WebhookController::class, 'storePhase4'])
+    ->middleware(CheckDuplicatedTransferHybrid::class);
