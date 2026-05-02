@@ -6,6 +6,8 @@ Estudo de arquitetura backend em Laravel sobre idempotência aplicada a webhooks
 
 O objetivo é demonstrar, de forma prática, como diferentes estratégias lidam com o mesmo problema: uma requisição de webhook pode chegar mais de uma vez e não deve gerar efeitos duplicados.
 
+Artigo completo: [Pagamentos idempotentes: um study case de arquitetura com Redis e banco de dados](https://dev.to/tarcisioaraujo/pagamentos-idempotentes-um-study-case-de-arquitetura-com-redis-e-banco-de-dados-3n06)
+
 ## Escopo
 
 Este projeto simula um endpoint de webhook de pagamento que despacha o processamento assíncrono de uma transferência bancária.
