@@ -48,3 +48,29 @@ function something()
 {
     // ..
 }
+
+/**
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function paymentWebhookPayload(array $overrides = []): array
+{
+    return array_merge([
+        'payer_name' => 'Joao Silva',
+        'payer_document' => '123.456.789-00',
+        'amount_in_cents' => 15000,
+        'bank_code' => '001',
+        'branch_number' => '1234',
+        'account_number' => '56789-0',
+    ], $overrides);
+}
+
+function paymentWebhookRoute(int $phase): string
+{
+    return sprintf('/api/webhooks/payments/phase-%d', $phase);
+}
+
+function providerWebhookIdempotencyKey(string $providerKey): string
+{
+    return 'webhook:provider-idempotency:'.hash('sha256', $providerKey);
+}
