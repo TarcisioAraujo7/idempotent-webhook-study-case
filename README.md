@@ -6,8 +6,6 @@ Estudo de arquitetura backend em Laravel sobre idempotência aplicada a webhooks
 
 O objetivo é demonstrar, de forma prática, como diferentes estratégias lidam com o mesmo problema: uma requisição de webhook pode chegar mais de uma vez e não deve gerar efeitos duplicados.
 
-
-
 ## Escopo
 
 Este projeto simula um endpoint de webhook de pagamento que despacha o processamento assíncrono de uma transferência bancária.
@@ -27,13 +25,16 @@ Sem uma estratégia de idempotência, a mesma intenção de pagamento pode dispa
 
 ## Stack
 
-- PHP 8.4+
+- PHP 8.3+ (Docker e CI em PHP 8.4)
 - Laravel 13
 - MySQL 8.4
 - Redis 7 com `predis/predis`
 - Queue do Laravel
 - Docker Compose
 - Pest/PHPUnit
+- Pint
+- PHPStan/Larastan
+- GitHub Actions
 
 ## Fases Do Estudo
 
@@ -69,7 +70,6 @@ Combina Redis e MySQL:
 - Redis atua como lock rápido contra concorrência imediata;
 - MySQL mantém o histórico e a garantia persistente de unicidade.
 
-
 ## Como Rodar
 
 Com Docker:
@@ -83,7 +83,14 @@ A aplicação ficará disponível em `http://127.0.0.1:8000`. O Compose sobe MyS
 Para rodar os testes dentro do container:
 
 ```bash
-docker compose exec app php artisan test
+docker compose exec app composer test
+```
+
+Para rodar as verificações de qualidade dentro do container:
+
+```bash
+docker compose exec app composer pint:test
+docker compose exec app composer analyse
 ```
 
 Para remover os containers e volumes:
@@ -93,6 +100,8 @@ docker compose down -v
 ```
 
 Sem Docker:
+
+Você precisa ter PHP, Composer, MySQL e Redis disponíveis localmente. Ajuste o `.env` com as credenciais do seu MySQL/Redis antes de rodar as migrations.
 
 Instale as dependências:
 
@@ -120,6 +129,26 @@ Rode a fila:
 php artisan queue:work
 ```
 
+## Qualidade E CI
+
+O projeto possui um fluxo de GitHub Actions que roda em pushes na `main` e em pull requests.
+
+O pipeline executa:
+
+- Pint, para verificação de estilo;
+- PHPStan com Larastan, para análise estática;
+- Pest/PHPUnit, para a suíte automatizada.
+
+Os mesmos comandos podem ser executados localmente:
+
+```bash
+composer pint:test
+composer analyse
+composer test
+```
+
+Os testes usam o banco `idempotent_webhook_test`. No Docker, ele é criado automaticamente pelo script em `docker/mysql/init`. Sem Docker, crie esse banco antes de rodar `composer test`.
+
 ## Exemplo De Requisição
 
 ```bash
@@ -138,7 +167,13 @@ curl -X POST http://127.0.0.1:8000/api/webhooks/payments/phase-4 \
 
 Ao repetir a mesma requisição com o mesmo `Idempotency-Key`, a aplicação deve responder como duplicada.
 
+Respostas esperadas:
 
+| Cenário | Status | Resposta |
+| --- | --- | --- |
+| Webhook novo na fase 4 | `201` | `{"message":"Phase 4 webhook processed successfully."}` |
+| Repetição do mesmo `Idempotency-Key` | `409` | `{"message":"Request already processed"}` |
+| Header ausente nas fases 3 ou 4 | `400` | `{"message":"The Idempotency-Key header is required."}` |
 
 ## Limitações
 
@@ -147,10 +182,11 @@ Ao repetir a mesma requisição com o mesmo `Idempotency-Key`, a aplicação dev
 - O projeto não implementa autenticação, assinatura de webhook ou observabilidade completa.
 - A fase Redis-only não garante idempotência após expiração do TTL.
 
-## Agradecimentos
+## Agradecimentos ❤️
 
-Obrigado por acompanhar este estudo de arquitetura.
+Obrigado por acompanhar este estudo de arquitetura! 
 
-Caso queira trocar uma ideia sobre backend, arquitetura ou desenvolvimento de software, deixo abaixo meu LinkedIn:
+Caso queira trocar uma ideia sobre backend, arquitetura ou desenvolvimento de software, deixo abaixo meu contato:
 
 LinkedIn: https://www.linkedin.com/in/tarcisioaraujo7/.
+Email: tarcisio.olv@gmail.com
