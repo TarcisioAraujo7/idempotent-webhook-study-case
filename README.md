@@ -1,5 +1,7 @@
 # Estudo de Arquitetura: Idempotência em Webhooks de Pagamento
 
+[![CI](https://github.com/TarcisioAraujo7/idempotent-webhook-study-case/actions/workflows/ci.yml/badge.svg)](https://github.com/TarcisioAraujo7/idempotent-webhook-study-case/actions/workflows/ci.yml)
+
 Estudo de arquitetura backend em Laravel sobre idempotência aplicada a webhooks de pagamento.
 
 O objetivo é demonstrar, de forma prática, como diferentes estratégias lidam com o mesmo problema: uma requisição de webhook pode chegar mais de uma vez e não deve gerar efeitos duplicados.
