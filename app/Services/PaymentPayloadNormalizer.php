@@ -5,7 +5,7 @@ namespace App\Services;
 final class PaymentPayloadNormalizer
 {
     /**
-     * @param array<mixed> $payload
+     * @param  array<mixed>  $payload
      * @return array<string, mixed>
      */
     public function normalize(array $payload): array

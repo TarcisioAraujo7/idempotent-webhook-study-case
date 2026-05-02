@@ -18,6 +18,6 @@ final class PaymentWebhookIdempotencyKeyResolver
             return null;
         }
 
-        return 'webhook:provider-idempotency:' . hash('sha256', $providerIdempotencyKey);
+        return 'webhook:provider-idempotency:'.hash('sha256', $providerIdempotencyKey);
     }
 }

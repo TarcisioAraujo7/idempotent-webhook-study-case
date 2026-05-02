@@ -10,8 +10,7 @@ class WebhookController extends Controller
 {
     public function __construct(
         private readonly BankTransferService $bankTransferService,
-    ) {
-    }
+    ) {}
 
     public function storePhase1(Request $request): JsonResponse
     {

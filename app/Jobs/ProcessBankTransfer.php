@@ -13,8 +13,7 @@ class ProcessBankTransfer implements ShouldQueue
 
     public function __construct(
         private readonly array $bankTransferData,
-    ) {
-    }
+    ) {}
 
     public function handle(): void
     {

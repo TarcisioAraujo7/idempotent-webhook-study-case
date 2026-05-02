@@ -15,8 +15,7 @@ class CheckDuplicatedTransfer
     public function __construct(
         private readonly PaymentPayloadNormalizer $payloadNormalizer,
         private readonly PaymentIdempotencyKeyGenerator $idempotencyKeyGenerator,
-    ) {
-    }
+    ) {}
 
     /**
      * Handle an incoming request.
@@ -30,7 +29,7 @@ class CheckDuplicatedTransfer
 
         $idempotencyKey = $this->idempotencyKeyGenerator->generate($normalizedPayload);
 
-        if (! Redis::set($idempotencyKey, 1, 'EX', 30, 'NX')) {
+        if (! Redis::command('set', [$idempotencyKey, 1, 'EX', 30, 'NX'])) {
             return response()->json(['message' => 'Request already processed'], 409);
         }
 

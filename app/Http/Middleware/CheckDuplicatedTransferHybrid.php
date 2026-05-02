@@ -20,8 +20,7 @@ class CheckDuplicatedTransferHybrid
     public function __construct(
         private readonly PaymentPayloadNormalizer $payloadNormalizer,
         private readonly PaymentWebhookIdempotencyKeyResolver $idempotencyKeyResolver,
-    ) {
-    }
+    ) {}
 
     /**
      * Handle an incoming request.
@@ -41,10 +40,10 @@ class CheckDuplicatedTransferHybrid
             ], 400);
         }
 
-        $lockKey = $idempotencyKey . ':lock';
+        $lockKey = $idempotencyKey.':lock';
         $lockOwner = (string) Str::uuid();
 
-        if (! Redis::set($lockKey, $lockOwner, 'EX', 30, 'NX')) {
+        if (! Redis::command('set', [$lockKey, $lockOwner, 'EX', 30, 'NX'])) {
             return response()->json(['message' => 'Request already processed'], 409);
         }
 
@@ -65,7 +64,7 @@ class CheckDuplicatedTransferHybrid
 
             throw $exception;
         } finally {
-            Redis::eval(File::get(resource_path('lua/release_redis_lock.lua')), 1, $lockKey, $lockOwner);
+            Redis::command('eval', [File::get(resource_path('lua/release_redis_lock.lua')), 1, $lockKey, $lockOwner]);
         }
 
         if ($response->isClientError() || $response->isServerError()) {

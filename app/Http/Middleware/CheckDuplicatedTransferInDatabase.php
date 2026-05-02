@@ -17,8 +17,7 @@ class CheckDuplicatedTransferInDatabase
     public function __construct(
         private readonly PaymentPayloadNormalizer $payloadNormalizer,
         private readonly PaymentWebhookIdempotencyKeyResolver $idempotencyKeyResolver,
-    ) {
-    }
+    ) {}
 
     /**
      * Handle an incoming request.

@@ -47,7 +47,7 @@ class PaymentWebhookReceipt extends Model
     }
 
     /**
-     * @param array<string, mixed> $attributes
+     * @param  array<string, mixed>  $attributes
      */
     private function transitionTo(PaymentWebhookReceiptStatus $nextStatus, array $attributes = []): void
     {
