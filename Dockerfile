@@ -31,9 +31,9 @@ COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint
 RUN cp .env.example .env \
     && composer dump-autoload --optimize \
     && php artisan package:discover --ansi \
-    && mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs bootstrap/cache \
+    && mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs bootstrap/cache /var/www/.config/psysh \
     && chmod +x /usr/local/bin/docker-entrypoint \
-    && chown -R www-data:www-data /var/www/html
+    && chown -R www-data:www-data /var/www/html /var/www/.config
 
 USER www-data
 
